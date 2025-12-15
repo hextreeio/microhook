@@ -37,7 +37,7 @@ Microhook allows you to intercept and modify syscalls in QEMU linux-user mode us
 ## Usage
 
 ```bash
-microhook-<arch> -microhook your_script.py ./your_binary [args...]
+microhook-<arch> -hook your_script.py ./your_binary [args...]
 ```
 
 ## API Reference
@@ -353,7 +353,7 @@ Each basic block entry in the binary section is 8 bytes:
 Coverage and syscall hooking can be used together:
 
 ```bash
-microhook-mipsel -coverage output.drcov -microhook hooks.py ./program
+microhook-mipsel -coverage output.drcov -hook hooks.py ./program
 ```
 
 This allows you to both collect coverage data and intercept/modify syscalls in the same run.
