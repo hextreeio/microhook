@@ -1,4 +1,8 @@
-# Microhook - A small system-call hooking & coverage facility for QEMU user-mode.
+# Microhook - A small system-call hooking & coverage tool for QEMU user-mode.
+
+Microhook provides:
+- System-call hooking via very simple Python scripts
+- Drcov coverage collection
 
 Microhook is a fork of QEMU with minimal changes to upstream QEMU to make keeping up with upstream easy. All the hard work is done by QEMU, this just adds some useful features for firmware-emulation & reverse-engineering.
 
