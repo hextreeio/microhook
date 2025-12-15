@@ -167,61 +167,6 @@ The following table shows the register layout for each supported architecture:
 | **Xtensa** | `regs[0-15]`, `pc`, `sp` | `regs[1]` = SP |
 | **LoongArch** | `gpr[0-31]`, `pc`, `sp` | `gpr[3]` = SP |
 
-#### Example: Logging Return Address
-
-```python
-import microhook
-
-def log_write_caller(ctx):
-    syscall_num = ctx["num"]
-    cpu = ctx["cpu"]
-    
-    print(f"write() called from PC=0x{cpu['pc']:x}, SP=0x{cpu['sp']:x}")
-    
-    # On ARM64, you might also log other registers:
-    if "xregs" in cpu:
-        x0 = cpu["xregs"][0]  # First argument register
-        lr = cpu["xregs"][30]  # Link register (return address)
-        print(f"  x0=0x{x0:x}, LR=0x{lr:x}")
-    
-    return False
-
-microhook.register_pre_hook("write", log_write_caller)
-```
-
-#### Example: Stack Trace Collection
-
-```python
-import microhook
-
-call_stack = []
-
-def trace_syscalls(ctx):
-    cpu = ctx["cpu"]
-    pc = cpu["pc"]
-    sp = cpu["sp"]
-    syscall = ctx["num"]
-    name = microhook.SYSCALLS.get(syscall, f"syscall_{syscall}")
-    
-    call_stack.append({
-        "syscall": name,
-        "pc": pc,
-        "sp": sp
-    })
-    
-    return False
-
-# Register for multiple syscalls
-for syscall in ["open", "read", "write", "close"]:
-    microhook.register_pre_hook(syscall, trace_syscalls)
-```
-
-### Syscall Information
-
-```python
-# Dictionary mapping syscall numbers to names
-microhook.SYSCALLS  # {4003: "read", 4004: "write", ...}
-```
 
 ## Examples
 
