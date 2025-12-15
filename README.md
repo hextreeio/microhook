@@ -12,7 +12,7 @@ All QEMU user-mode architectures are supported.
 
 Static compilation is great for having a single binary that you can just drop into a rootfs and chroot into it. During static compilation Python 3.11 is fully embedded into the binary.
 
-Check-out `Dockerfile` and `build.sh` to see how to statically build Microhook, or just download one of the releases.
+Check-out `Dockerfile` and `build_static.sh` to see how to statically build Microhook, or just download one of the releases.
 
 ## Dynamically
 
