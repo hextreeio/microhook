@@ -4420,6 +4420,13 @@ foreach target : target_dirs
         'dependencies': specific_fuzz.dependencies(),
       }]
     endif
+  elif 'CONFIG_LINUX_USER' in config_target
+    execs = [{
+      'name': 'microhook-' + target_name,
+      'win_subsystem': 'console',
+      'sources': [],
+      'dependencies': []
+    }]
   else
     execs = [{
       'name': 'qemu-' + target_name,

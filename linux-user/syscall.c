@@ -25,6 +25,7 @@
 #include "qemu/plugin.h"
 #include "tcg/startup.h"
 #include "target_mman.h"
+#include "microhook.h"
 #include "exec/page-protection.h"
 #include "exec/mmap-lock.h"
 #include <elf.h>
@@ -14186,6 +14187,8 @@ abi_long do_syscall(CPUArchState *cpu_env, int num, abi_long arg1,
     CPUState *cpu = env_cpu(cpu_env);
     TaskState *ts = get_task_state(cpu);
     abi_long ret;
+    MicrohookResult hook_result;
+    bool hooked = false;
 
 #ifdef DEBUG_ERESTARTSYS
     /* Debug-only code for exercising the syscall-restart code paths
@@ -14205,6 +14208,34 @@ abi_long do_syscall(CPUArchState *cpu_env, int num, abi_long arg1,
         return -QEMU_ESIGRETURN;
     }
 
+    /* Microhook pre-syscall hook */
+    if (microhook_enabled()) {
+        hooked = microhook_pre_syscall(cpu_env, num,
+                                      arg1, arg2, arg3, arg4,
+                                      arg5, arg6, arg7, arg8,
+                                      &hook_result);
+        if (hooked) {
+            /* Use possibly modified arguments */
+            arg1 = hook_result.args[0];
+            arg2 = hook_result.args[1];
+            arg3 = hook_result.args[2];
+            arg4 = hook_result.args[3];
+            arg5 = hook_result.args[4];
+            arg6 = hook_result.args[5];
+            arg7 = hook_result.args[6];
+            arg8 = hook_result.args[7];
+
+            /* Check if we should skip the syscall */
+            if (hook_result.action == MICROHOOK_SKIP) {
+                ret = hook_result.ret;
+                record_syscall_start(cpu, num, arg1,
+                                     arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+                record_syscall_return(cpu, num, ret);
+                return ret;
+            }
+        }
+    }
+
     record_syscall_start(cpu, num, arg1,
                          arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 
@@ -14218,6 +14249,13 @@ abi_long do_syscall(CPUArchState *cpu_env, int num, abi_long arg1,
     if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
         print_syscall_ret(cpu_env, num, ret, arg1, arg2,
                           arg3, arg4, arg5, arg6);
+    }
+
+    /* Microhook post-syscall hook */
+    if (microhook_enabled()) {
+        ret = microhook_post_syscall(cpu_env, num, ret,
+                                    arg1, arg2, arg3, arg4,
+                                    arg5, arg6, arg7, arg8);
     }
 
     record_syscall_return(cpu, num, ret);

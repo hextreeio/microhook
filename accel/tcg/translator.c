@@ -20,6 +20,7 @@
 #include "internal-common.h"
 #include "disas/disas.h"
 #include "tb-internal.h"
+#include "linux-user/microhook-coverage.h"
 
 static void set_can_do_io(DisasContextBase *db, bool val)
 {
@@ -204,7 +205,6 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
     /* Emit code to exit the TB, as indicated by db->is_jmp.  */
     ops->tb_stop(db, cpu);
     gen_tb_end(tb, cflags, icount_start_insn, db->num_insns);
-
     /*
      * Manage can_do_io for the translation block: set to false before
      * the first insn and set to true before the last insn.
@@ -226,6 +226,11 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
 
     if (plugin_enabled) {
         plugin_gen_tb_end(cpu, db->num_insns);
+    }
+
+    /* Record block for coverage if enabled */
+    if (microhook_coverage_enabled()) {
+        microhook_coverage_record_block(db->pc_first, tb->size);
     }
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)

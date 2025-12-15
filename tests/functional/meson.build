@@ -49,7 +49,7 @@ foreach speed : ['quick', 'thorough']
       test_emulator = emulators['qemu-system-' + target_base]
     elif dir.endswith('-linux-user')
       sysmode = 'linuxuser'
-      test_emulator = emulators['qemu-' + target_base]
+      test_emulator = emulators['microhook-' + target_base]
     elif dir.endswith('-bsd-user')
       sysmode = 'bsduser'
       test_emulator = emulators['qemu-' + target_base]

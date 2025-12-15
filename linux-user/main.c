@@ -57,6 +57,8 @@
 #include "user-mmap.h"
 #include "tcg/perf.h"
 #include "exec/page-vary.h"
+#include "microhook.h"
+#include "microhook-coverage.h"
 
 #ifdef CONFIG_SEMIHOSTING
 #include "semihosting/semihost.h"
@@ -69,6 +71,7 @@
 
 char *exec_path;
 char real_exec_path[PATH_MAX];
+char resolved_path[PATH_MAX];
 
 static bool opt_one_insn_per_tb;
 static unsigned long opt_tb_size;
@@ -92,6 +95,21 @@ char **qemu_argv;
  * -strace, or vice versa.
  */
 static bool enable_strace;
+
+/*
+ * Microhook Python script path
+ */
+static const char *microhook_script;
+
+/*
+ * Coverage output file path
+ */
+static const char *coverage_file;
+
+/*
+ * Use PATH environment variable to find binary
+ */
+static bool use_path;
 
 /*
  * The last log mask given by the user in an environment variable or argument.
@@ -460,9 +478,24 @@ static void handle_arg_jitdump(const char *arg)
     perf_enable_jitdump();
 }
 
+static void handle_arg_microhook(const char *arg)
+{
+    microhook_script = strdup(arg);
+}
+
+static void handle_arg_coverage(const char *arg)
+{
+    coverage_file = arg ? strdup(arg) : NULL;
+}
+
 static void handle_arg_qemu_children(const char *arg)
 {
     qemu_dup_for_children = true;
+}
+
+static void handle_arg_use_path(const char *arg)
+{
+    use_path = true;
 }
 
 static QemuPluginList plugins = QTAILQ_HEAD_INITIALIZER(plugins);
@@ -543,10 +576,16 @@ static const struct qemu_argument arg_table[] = {
      "",           "Generate a /tmp/perf-${pid}.map file for perf"},
     {"jitdump",    "QEMU_JITDUMP",     false, handle_arg_jitdump,
      "",           "Generate a jit-${pid}.dump file for perf"},
+    {"hook",   "QEMU_MICROHOOK",    true,  handle_arg_microhook,
+     "script.py",  "Load Python script for syscall hooking"},
+    {"coverage",   "QEMU_COVERAGE",    true,  handle_arg_coverage,
+     "file.drcov", "Generate DRCov coverage file (default: coverage.drcov)"},
     {"qemu-children",
                    "QEMU_CHILDREN",    false, handle_arg_qemu_children,
      "",           "Run child processes (created with execve) with qemu "
                    "(as instantiated for the parent)"},
+    {"use-path",   "QEMU_USE_PATH",    false, handle_arg_use_path,
+     "",           "Use PATH environment variable to find binary"},
     {NULL, NULL, false, NULL, NULL, NULL}
 };
 
@@ -691,6 +730,39 @@ static int parse_args(int argc, char **argv)
 
     return optind;
 }
+char *find_in_path(const char *bin);
+char *find_in_path(const char *bin) {
+    if (!bin || !*bin)
+        return NULL;
+
+    const char *path = getenv("PATH");
+    if (!path)
+        return NULL;
+
+    // We will duplicate PATH because strtok modifies the string
+    char *path_dup = strdup(path);
+    if (!path_dup)
+        return NULL;
+
+    char *saveptr = NULL;
+    char *dir = strtok_r(path_dup, ":", &saveptr);
+
+    while (dir) {
+        size_t len = strlen(dir) + 1 + strlen(bin) + 1; // dir + "/" + bin + "\0"
+        snprintf(resolved_path, len, "%s/%s", dir, bin);
+
+        // Check if file is accessible (exists + executable)
+        if (access(resolved_path, X_OK) == 0) {
+            free(path_dup);
+            return resolved_path;  // caller must free()
+        }
+
+        dir = strtok_r(NULL, ":", &saveptr);
+    }
+
+    free(path_dup);
+    return NULL;
+}
 
 int main(int argc, char **argv, char **envp)
 {
@@ -767,6 +839,14 @@ int main(int argc, char **argv, char **envp)
     trace_init_file();
     qemu_plugin_load_list(&plugins, &error_fatal);
 
+    /* Initialize microhook if a script was provided */
+    if (microhook_script) {
+        if (microhook_init(microhook_script) != 0) {
+            fprintf(stderr, "Failed to initialize microhook\n");
+            exit(1);
+        }
+    }
+
     /* Zero out image_info */
     memset(info, 0, sizeof(struct image_info));
 
@@ -783,9 +863,19 @@ int main(int argc, char **argv, char **envp)
     errno = 0;
     execfd = qemu_getauxval(AT_EXECFD);
     if (errno != 0) {
+        // It's *not* called via binfmt
+        if (use_path && access(exec_path, X_OK) != 0) {
+            // attempt to find in path
+            char *resolved_path = find_in_path(exec_path);
+            if(resolved_path) {
+                exec_path = resolved_path;
+                printf("Loading real path %s\n", exec_path);
+            }
+        }
+        printf("Loading: %s\n", exec_path);
         execfd = open(exec_path, O_RDONLY);
         if (execfd < 0) {
-            printf("Error while loading %s: %s\n", exec_path, strerror(errno));
+            printf("Error while loading non-binfmt %s: %s\n", exec_path, strerror(errno));
             _exit(EXIT_FAILURE);
         }
     }
@@ -995,6 +1085,17 @@ int main(int argc, char **argv, char **envp)
     if (ret != 0) {
         printf("Error while loading %s: %s\n", exec_path, strerror(-ret));
         _exit(EXIT_FAILURE);
+    }
+
+    /* Initialize coverage if requested (after binary is loaded) */
+    if (coverage_file || getenv("QEMU_COVERAGE")) {
+        if (microhook_coverage_init(coverage_file) == 0) {
+            microhook_coverage_set_binary_info(exec_path,
+                                              info->start_code,
+                                              info->end_code,
+                                              info->entry);
+            atexit(microhook_coverage_shutdown);
+        }
     }
 
     for (wrk = target_environ; *wrk; wrk++) {

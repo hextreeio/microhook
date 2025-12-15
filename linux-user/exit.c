@@ -22,6 +22,7 @@
 #include "qemu.h"
 #include "user-internals.h"
 #include "qemu/plugin.h"
+#include "microhook-coverage.h"
 
 #ifdef CONFIG_GCOV
 extern void __gcov_dump(void);
@@ -34,5 +35,6 @@ void preexit_cleanup(CPUArchState *env, int code)
 #endif
         gdb_exit(code);
         qemu_plugin_user_exit();
+        microhook_coverage_shutdown();
         perf_exit();
 }

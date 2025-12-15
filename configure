@@ -244,10 +244,10 @@ done
 
 default_cflags='-O2 -g'
 git_submodules_action="update"
-docs="auto"
+docs="disabled"
 EXESUF=""
-system="yes"
-linux_user=""
+system="no"
+linux_user="yes"
 bsd_user=""
 plugins="$default_feature"
 subdirs=""
@@ -626,6 +626,20 @@ meson_add_machine_file() {
     meson_option_add --native-file "$1"
   fi
 }
+
+# Default meson options (can be overridden by command line)
+meson_option_add -Dbrlapi=disabled
+meson_option_add -Dgtk=disabled
+meson_option_add -Dlibiscsi=disabled
+meson_option_add -Dlibnfs=disabled
+meson_option_add -Dpa=disabled
+meson_option_add -Drbd=disabled
+meson_option_add -Dsdl=disabled
+meson_option_add -Dsnappy=disabled
+meson_option_add -Dvnc=disabled
+meson_option_add -Dgio=disabled
+meson_option_add -Dtools=disabled
+meson_option_add -Dwerror=false
 
 for opt do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
