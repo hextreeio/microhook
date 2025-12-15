@@ -1,7 +1,7 @@
 /*
  * Microhook Coverage - DRCov coverage generation for QEMU linux-user
  *
- * Copyright (c) 2024
+ * Copyright (c) 2025 Thomas 'stacksmashing' Roth <code@stacksmashing.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

@@ -1,7 +1,7 @@
 /*
  * Microhook Coverage - DRCov coverage generation for QEMU linux-user
  *
- * Copyright (c) 2024
+ * Copyright (c) 2025 Thomas 'stacksmashing' Roth <code@stacksmashing.net>
  *
  * Generates DRCov format coverage files compatible with tools like
  * Lighthouse for coverage visualization in IDA Pro, Binary Ninja, etc.
