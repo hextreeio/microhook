@@ -74,7 +74,8 @@ def my_pre_hook(ctx):
     #     "num": syscall_number,
     #     "args": [arg0..arg7],
     #     "ret": 0,
-    #     "cpu": { "pc": ..., "sp": ..., ... }  # CPU register state
+    #     "binary": "/path/to/binary",           # path to the executed binary
+    #     "cpu": { "pc": ..., "sp": ..., ... }   # CPU register state
     # }
     
     # Access syscall info
@@ -109,7 +110,8 @@ def my_post_hook(ctx, ret):
     # ctx = {
     #     "num": syscall_number,
     #     "args": [arg0..arg7],
-    #     "cpu": { "pc": ..., "sp": ..., ... }  # CPU register state
+    #     "binary": "/path/to/binary",           # path to the executed binary
+    #     "cpu": { "pc": ..., "sp": ..., ... }   # CPU register state
     # }
     # ret = actual return value from the syscall
     

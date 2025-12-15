@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "microhook.h"
 #include "qemu.h"
+#include "user-internals.h"
 
 #define PY_SSIZE_T_CLEAN
 #pragma GCC diagnostic push
@@ -91,6 +92,7 @@ static int parse_syscall_identifier(PyObject *obj)
  *       "num": int,           # syscall number
  *       "args": [arg0..arg7], # syscall arguments
  *       "ret": 0,             # return value (for skip mode)
+ *       "binary": str,        # path to the executed binary
  *       "cpu": {              # CPU register state (architecture-specific)
  *           "pc": int,        # program counter
  *           "sp": int,        # stack pointer
@@ -151,6 +153,7 @@ static PyObject *py_register_pre_hook(PyObject *self, PyObject *args)
  *   callback(ctx, ret) where ctx = {
  *       "num": int,           # syscall number
  *       "args": [arg0..arg7], # syscall arguments
+ *       "binary": str,        # path to the executed binary
  *       "cpu": {              # CPU register state (architecture-specific)
  *           "pc": int,        # program counter
  *           "sp": int,        # stack pointer
@@ -1001,6 +1004,15 @@ bool microhook_pre_syscall(CPUArchState *cpu_env, int num,
         Py_DECREF(cpu_ctx);
     }
 
+    /* Add binary name */
+    if (exec_path) {
+        PyObject *py_binary = PyUnicode_FromString(exec_path);
+        if (py_binary) {
+            PyDict_SetItemString(ctx, "binary", py_binary);
+            Py_DECREF(py_binary);
+        }
+    }
+
     /* Call the Python callback with the context dict */
     PyObject *py_result = PyObject_CallFunctionObjArgs(callback, ctx, NULL);
     if (!py_result) {
@@ -1107,6 +1119,15 @@ abi_long microhook_post_syscall(CPUArchState *cpu_env, int num,
     if (cpu_ctx) {
         PyDict_SetItemString(ctx, "cpu", cpu_ctx);
         Py_DECREF(cpu_ctx);
+    }
+
+    /* Add binary name */
+    if (exec_path) {
+        PyObject *py_binary = PyUnicode_FromString(exec_path);
+        if (py_binary) {
+            PyDict_SetItemString(ctx, "binary", py_binary);
+            Py_DECREF(py_binary);
+        }
     }
 
     /* Call the Python callback with (ctx, ret) */
