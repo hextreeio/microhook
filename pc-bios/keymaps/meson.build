@@ -52,7 +52,9 @@ if native_qemu_keymap.found()
   endforeach
   alias_target('update-keymaps', keymap_targets)
 else
-  install_data(keymaps.keys(), install_dir: qemu_datadir / 'keymaps')
+  if have_system
+    install_data(keymaps.keys(), install_dir: qemu_datadir / 'keymaps')
+  endif
 endif
 
 if have_system

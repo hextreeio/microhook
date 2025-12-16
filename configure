@@ -640,6 +640,7 @@ meson_option_add -Dvnc=disabled
 meson_option_add -Dgio=disabled
 meson_option_add -Dtools=disabled
 meson_option_add -Dwerror=false
+meson_option_add -Dinstall_blobs=false
 
 for opt do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
