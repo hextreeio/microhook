@@ -1,0 +1,62 @@
+name: Build Microhook
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t microhook-build:${{ matrix.arch }} \
+            .
+
+      - name: Build project
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/qemu \
+            microhook-build:${{ matrix.arch }} /bin/bash -c '
+              source $HOME/.cargo/env
+              export PKG_CONFIG_PATH="/opt/python-static/lib/pkgconfig:$PKG_CONFIG_PATH"
+              
+              # Clean previous build
+              rm -rf build
+              
+              ./configure --static
+              
+              make -j$(nproc)
+              make install DESTDIR=/qemu/install
+            '
+
+      - name: List built binaries
+        run: |
+          echo "Built binaries:"
+          find install -name 'microhook-*' -type f 2>/dev/null || echo "No binaries found"
+
+      - name: Collect microhook binaries
+        run: |
+          mkdir -p artifacts
+          find install -name 'microhook-*' -type f -exec cp {} artifacts/ \;
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: microhook-${{ matrix.arch }}
+          path: artifacts/microhook-*
+          if-no-files-found: error
+

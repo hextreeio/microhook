@@ -80,18 +80,18 @@ RUN pip3 install tomli pycotap --break-system-packages
 # Create pkg-config file for static Python embedding
 RUN rm -f /opt/python-static/lib/pkgconfig/python3-embed.pc \
           /opt/python-static/lib/pkgconfig/python-3.11-embed.pc && \
-    cat > /opt/python-static/lib/pkgconfig/python3-embed.pc << 'PKGEOF'
-prefix=/opt/python-static
-exec_prefix=${prefix}
-libdir=${prefix}/lib
-includedir=${prefix}/include/python3.11
-
-Name: Python
-Description: Embed Python into your application (static)
-Version: 3.11.9
-Cflags: -I${includedir}
-Libs: -L${libdir} -l:libpython3.11.a -lpthread -lm -lz -lffi -lutil
-PKGEOF
+    printf '%s\n' \
+        'prefix=/opt/python-static' \
+        'exec_prefix=${prefix}' \
+        'libdir=${prefix}/lib' \
+        'includedir=${prefix}/include/python3.11' \
+        '' \
+        'Name: Python' \
+        'Description: Embed Python into your application (static)' \
+        'Version: 3.11.9' \
+        'Cflags: -I${includedir}' \
+        'Libs: -L${libdir} -l:libpython3.11.a -lpthread -lm -lz -lffi -lutil' \
+        > /opt/python-static/lib/pkgconfig/python3-embed.pc
 
 # Create the symlink to match expected names
 RUN ln -s python3-embed.pc /opt/python-static/lib/pkgconfig/python-3.11-embed.pc
